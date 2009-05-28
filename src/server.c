@@ -25,6 +25,8 @@
 #include "sbot.h"
 
 
+int lock = 1;
+
 static int launch_server(void)
 {
    int port = SBOT_PORT;
@@ -49,7 +51,6 @@ static int launch_server(void)
    if (setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,(int[]){1},sizeof(int)) == -1)
       err(1,"setsockopt() :");
 
-   setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO,&timeout, sizeof(struct timeval));
    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO,&timeout, sizeof(struct timeval));
    setsockopt(fd, SOL_SOCKET, SO_LINGER,&lng, sizeof(struct linger));
 
@@ -75,7 +76,14 @@ void * sbot_read(void *arg)
       memset(buf, 0, SBOT_MAX);
       n = recv(fd, buf, SBOT_MAX, 0);
       if(n > 0)
-	 printf("\033[36m%s\033[37m", buf);
+      {
+	 if(!strcmp(buf, "SBOT_EOF"))
+	    lock = 0;
+	 else
+	    printf("\033[36m%s\033[37m", buf);
+      }
+      else
+	 break;
    }
 
    printf("%% Disconnected\n");
@@ -90,6 +98,7 @@ int main(void)
    socklen_t sin_size;
    pthread_t tid;
    char *input;
+   char prompt[18];
 
    printf(" __   ____  _           _      ___   _   __ \n");
    printf("| _| / ___|| |__   ___ | |_   / _ \\ / | |_ |\n");
@@ -113,18 +122,23 @@ int main(void)
       }
    }
 
+   sprintf(prompt, "%s >", inet_ntoa(c_addr.sin_addr));
+
    /* on lance le thread read */
    if(pthread_create(&tid, NULL, sbot_read, (void*)c_fd) != 0)
       err(1,"pthread_create() :");
 
    for(;;)
    {
-      input = readline(">");
+      lock = 1;
+      input = readline(prompt);
       if(input)
+      {
 	 send(c_fd,input,strlen(input), 0);
-      if(!strcmp(input, "exit"))
-	 break;
-      sleep(1);
+	 if(!strcmp(input, "exit"))
+	    break;
+	 while(lock != 0);
+      }
    }
 
    return EXIT_SUCCESS;

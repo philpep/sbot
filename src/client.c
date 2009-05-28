@@ -91,6 +91,7 @@ int main(int argc, char *argv[])
 	    chdir(buffer+3);
 	 else
 	    sbot_exec(buffer);
+	 send(s_fd, "SBOT_EOF", 9, 0);
       }
    }
 
