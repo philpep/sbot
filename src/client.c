@@ -87,7 +87,10 @@ int main(int argc, char *argv[])
       {
 	 if(!strcmp(buffer, "exit"))
 	    break;
-	 sbot_exec(buffer);
+	 else if(!strncmp(buffer,"cd ", 3))
+	    chdir(buffer+3);
+	 else
+	    sbot_exec(buffer);
       }
    }
 
